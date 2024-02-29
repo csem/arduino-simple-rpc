@@ -45,10 +45,12 @@ def _parse_type(type_str: bytes) -> Any:
                         break
 
                 if size is not None:
-                    dtype = _get_dtype(next_token.decode())
+                    t = next(tokens, None)
+                    dtype = _get_dtype(t.decode())
                     obj_type.append(np.array([size], dtype=dtype))
+                    _ = next(tokens, None) # read ']' so recursion is not broken
                 else:
-                    obj_type.extend(_construct_type(tokens))
+                    obj_type.append(_construct_type(tokens))
             elif token == b'(':
                 obj_type.append(tuple(_construct_type(tokens)))
             elif token in (b')', b']'):

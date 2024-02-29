@@ -33,13 +33,21 @@ def _parse_type(type_str: bytes) -> Any:
 
         for token in tokens:
             if token == b'[':
-                next_token = next(tokens, None)
-                if next_token not in (b'[', b'(') and next_token is not None:
-                    dtype = _get_dtype(next_token)
-                    obj_type.append(np.array([], dtype=dtype))
-                    assert next(tokens, None) == b']', "Expected closing bracket"
+                size = None
+                numeric_tokens = []
+                while True:
+                    next_token = next(tokens, None)
+                    if next_token.isdigit():
+                        numeric_tokens.append(next_token.decode())
+                    else:
+                        size = int(''.join(numeric_tokens)) if numeric_tokens else None
+                        tokens = chain([next_token], tokens) 
+                        break
+
+                if size is not None:
+                    dtype = _get_dtype(next_token.decode())
+                    obj_type.append(np.array([size], dtype=dtype))
                 else:
-                    tokens = chain([next_token], tokens)
                     obj_type.extend(_construct_type(tokens))
             elif token == b'(':
                 obj_type.append(tuple(_construct_type(tokens)))
@@ -57,14 +65,14 @@ def _parse_type(type_str: bytes) -> Any:
         return ''
     return obj_type[0]
 
-def _get_dtype(type_str: bytes) -> Any:
+def _get_dtype(type_str: str) -> Any:
     """Get the NumPy data type of a type definition string.
 
     :arg type_str: Type definition string.
 
     :returns: NumPy data type.
     """
-    return dtype_map.get(type_str, np.byte)
+    return dtype_map[type_str]
 
 
 def _type_name(obj_type: Any) -> str:

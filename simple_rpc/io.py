@@ -45,6 +45,9 @@ def _write_basic(
         stream.write(value + b'\0')
         return
     elif isinstance(basic_type, np.ndarray):
+        if basic_type.size != 0:
+            assert basic_type[0] == value.size, f"Array size mismatch. Expected: {basic_type.size}, got: {value.size}"
+        
         print(f"writing array: {basic_type.itemsize}, {value.size}")
         stream.write(value.tobytes())
         return
@@ -81,9 +84,6 @@ def read(
 
     :returns: Object of type {obj_type}.
     """
-
-    print(f"reading: {obj_type}")
-
     if isinstance(obj_type, np.ndarray):
         length = _read_basic(stream, endianness, size_t)
         return np.frombuffer(
@@ -103,9 +103,26 @@ def read(
     return _read_basic(stream, endianness, obj_type)
 
 
-def read_byte_string(stream: BinaryIO) -> bytes:
-    return _read_bytes_until(stream, b'\0')
+def read_byte_string(stream: BinaryIO, endianness: str = None, size_bytes: int = None) -> bytes:
+    if size_bytes is None:
+        return _read_bytes_until(stream, b'\0')
+    
+    assert endianness is not None, "Endianness must be specified when size_bytes is specified"
+    result = bytearray()
+    while True:
+        char = stream.read(1)
+        if char == b'\0':
+            break
 
+        if char == b'#':
+            size = str(int.from_bytes(stream.read(size_bytes), endianness))
+            result.extend(size.encode('utf-8'))
+            result.extend(read_byte_string(stream, endianness, size_bytes))
+            break
+        result.extend(char)
+
+    return result
+    
 
 def write(
         stream: BinaryIO, endianness: str, size_t: str, obj_type: Any,

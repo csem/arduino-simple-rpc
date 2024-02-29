@@ -10,7 +10,7 @@ from yaml import FullLoader, dump, load
 
 from .extras import make_function
 from .io import read, read_byte_string, until, write
-from .protocol import parse_line
+from .protocol import parse_line, _get_dtype
 
 
 _protocol = 'simpleRPC'
@@ -87,13 +87,20 @@ class _Interface(object):
         :arg obj_type: Type of the parameter.
         :arg obj: Value of the parameter.
         """
-        # print(f"write obj_type: {obj_type}")
         write(
             self._connection, self.device['endianness'], self.device['size_t'],
             obj_type, obj)
 
+
     def _read_byte_string(self: object) -> bytes:
         return read_byte_string(self._connection)
+    
+    def _read_sized_byte_string(self: object) -> bytes:
+        size = _get_dtype(self.device['size_t'])().itemsize
+        endianness = 'little' if  self.device['endianness'] == '<' else 'big'
+
+        ret = read_byte_string(self._connection, endianness, size)
+        return ret
 
     def _read(self: object, obj_type: Any) -> Any:
         """Read a return value from a remote procedure call.
@@ -102,7 +109,6 @@ class _Interface(object):
 
         :returns: Return value.
         """
-        # print(f"read obj_type: {obj_type}")
         return read(
             self._connection, self.device['endianness'], self.device['size_t'],
             obj_type)
@@ -122,7 +128,7 @@ class _Interface(object):
             chr(c) for c in self._read_byte_string())
 
         for index, line in enumerate(
-                until(lambda x: x == b'', self._read_byte_string)):
+                until(lambda x: x == b'', self._read_sized_byte_string)):
             method = parse_line(index, line)
             self.device['methods'][method['name']] = method
 

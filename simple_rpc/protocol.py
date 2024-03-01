@@ -41,6 +41,7 @@ def _parse_type(type_str: bytes) -> Any:
                     if next_token == b'[' or next_token == b'(': # nested type
                         tokens = chain([next_token], tokens) 
                         is_nested = True
+                        break
 
                     if next_token.isdigit():
                         numeric_tokens.append(next_token.decode())

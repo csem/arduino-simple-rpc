@@ -46,9 +46,8 @@ def _write_basic(
         return
     elif isinstance(basic_type, np.ndarray):
         if basic_type.size != 0:
-            assert basic_type[0] == value.size, f"Array size mismatch. Expected: {basic_type.size}, got: {value.size}"
+            assert basic_type[0] == value.size, f"Array size mismatch. Expected: {basic_type.basic_type[0]}, got: {value.size}"
         
-        print(f"writing array: {basic_type.itemsize}, {value.size}")
         stream.write(value.tobytes())
         return
 

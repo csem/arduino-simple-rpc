@@ -33,10 +33,15 @@ def _parse_type(type_str: bytes) -> Any:
 
         for token in tokens:
             if token == b'[':
+                is_nested = False
                 size = None
                 numeric_tokens = []
                 while True:
                     next_token = next(tokens, None)
+                    if next_token == b'[' or next_token == b'(': # nested type
+                        tokens = chain([next_token], tokens) 
+                        is_nested = True
+
                     if next_token.isdigit():
                         numeric_tokens.append(next_token.decode())
                     else:
@@ -44,13 +49,20 @@ def _parse_type(type_str: bytes) -> Any:
                         tokens = chain([next_token], tokens) 
                         break
 
-                if size is not None:
+                if size is not None and not is_nested: # fixed size atomic array
                     t = next(tokens, None)
                     dtype = _get_dtype(t.decode())
                     obj_type.append(np.array([size], dtype=dtype))
                     _ = next(tokens, None) # read ']' so recursion is not broken
-                else:
-                    obj_type.append(_construct_type(tokens))
+                    continue
+                
+                if not is_nested:  # dynamic size atomic array
+                    t = next(tokens, None)
+                    dtype = _get_dtype(t.decode())
+                    obj_type.append(np.array([], dtype=dtype))
+                    _ = next(tokens, None) # read ']' so recursion is not broken
+                else: # nested array (dynamic or fixed size)
+                     obj_type.append(_construct_type(tokens))
             elif token == b'(':
                 obj_type.append(tuple(_construct_type(tokens)))
             elif token in (b')', b']'):
@@ -172,3 +184,4 @@ def parse_line(index: int, line: bytes) -> dict:
 
 def hardware_defs(stream: BinaryIO) -> tuple:
     return tuple(bytes([char]) for char in read_byte_string())
+

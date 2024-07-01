@@ -51,15 +51,23 @@ def _parse_type(type_str: bytes) -> Any:
                         break
 
                 if size is not None and not is_nested: # fixed size atomic array
-                    t = next(tokens, None)
-                    dtype = _get_dtype(t.decode())
+                    t = next(tokens, None).decode()
+                    if t == 's':
+                        obj_type.append([t])
+                        continue
+
+                    dtype = _get_dtype(t)
                     obj_type.append(np.array([size], dtype=dtype))
                     _ = next(tokens, None) # read ']' so recursion is not broken
                     continue
                 
                 if not is_nested:  # dynamic size atomic array
-                    t = next(tokens, None)
-                    dtype = _get_dtype(t.decode())
+                    t = next(tokens, None).decode()
+                    if t == 's':
+                        obj_type.append([t])
+                        continue
+
+                    dtype = _get_dtype(t)
                     obj_type.append(np.array([], dtype=dtype))
                     _ = next(tokens, None) # read ']' so recursion is not broken
                 else: # nested array (dynamic or fixed size)
